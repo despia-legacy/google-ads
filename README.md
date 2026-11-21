@@ -1,12 +1,12 @@
 # Google Ads
 
-Source preview for Despia V3. This snapshot requires the runtime update currently awaiting release and an approved extension-enabled native build. Uploading these files does not change an installed app.
+Source preview for Despia V3. The runtime update and automatic discovery rollout are awaiting release. Rebuild and install the native app to include these files; uploading them does not change an installed app.
 
 Firebase Analytics app events for the Despia V3 native extension runtime on iOS and Android. This adapter is independent of AppsFlyer. It reports native events to Firebase Analytics so a linked Google Ads account can use eligible events as conversions. It does not display ads or include AdMob.
 
-Source preview. Requires the upcoming approved V3 extension build release. Verify campaign attribution in your advertising account before launch. First-party V4 support comes through the new package registry.
+Source preview. Requires the upcoming V3 extension runtime release. Verify campaign attribution in your advertising account before launch. First-party V4 support comes through the new package registry.
 
-The JavaScript API works with React, Next.js, TanStack, Vue, Svelte and HTML5. Projects built with Lovable, Base44, Replit and other app builders need custom JavaScript and static file hosting. Claude Code, Codex and Cursor can edit the same extension files. Native features run inside an approved Despia V3 app build.
+The JavaScript API works with React, Next.js, TanStack, Vue, Svelte and HTML5. Projects built with Lovable, Base44, Replit and other app builders need custom JavaScript and static file hosting. Claude Code, Codex and Cursor can edit the same extension files. Native features must be compiled into the installed Despia V3 app.
 
 ## Install
 
@@ -20,9 +20,11 @@ The JavaScript API works with React, Next.js, TanStack, Vue, Svelte and HTML5. P
 3. Register the iOS and Android apps in the same intended Firebase project. Keep one Google app ID for each distributed app variant. Link Firebase Analytics to your Google Ads account and choose the appropriate conversions there.
 4. For iOS, supply the matching `GoogleService-Info.plist` through the app's Despia build configuration. The V3 build copies this file even when Firebase push is disabled. This extension uses that file when no default Firebase app exists. It does not replace an existing app's configuration file.
 5. For Android, an app's generated Firebase resources take priority. When the app has none, fill the empty strings in `googleads/android/googleads/src/main/res/values/google_ads.xml` with the Firebase Android app's `google_app_id`, `google_api_key`, `project_id` and project number `gcm_defaultSenderId`. These names belong to the Firebase SDK. They are not Despia client IDs. Do not put service account credentials or server keys in the app.
-6. Rebuild the app through the V3 Extensions approval flow. Copying files to the website does not change an installed app.
+6. Rebuild and install the native app with this extension. Copying files to the website does not change an installed app.
 
-This extension pins the existing iOS Firebase SDK version, 10.29.0, through CocoaPods. Its CocoaPods dependency versions and SDK contents are pinned for approval. It uses Android Firebase BOM 34.11.0. It adds no Messaging dependency and never enables push or calls a Messaging API.
+Signed build verification binds source hashes, dependency pins, app identity and final artifacts. It is separate from human code review and does not require a per-app enrollment switch.
+
+This extension pins the existing iOS Firebase SDK version, 10.29.0, through CocoaPods. Its CocoaPods dependency versions and SDK contents are pinned for build verification. It uses Android Firebase BOM 34.11.0. It adds no Messaging dependency and never enables push or calls a Messaging API.
 
 See [V3 Extensions](https://setup.despia.com/experiments/v3-extensions) and the [extension skill](https://github.com/despia-legacy/extension-skill).
 
@@ -44,7 +46,7 @@ Install the published SDK in your web app:
 npm install despia-native
 ```
 
-Import `despia` directly from `despia-native`. The examples use SDK 1.0.28. Run native calls from browser event handlers or mounted client hooks; importing the SDK during server rendering is safe. The installed Despia V3 app must include the approved extension.
+Import `despia` directly from `despia-native`. The examples use SDK 1.0.28. Run native calls from browser event handlers or mounted client hooks; importing the SDK during server rendering is safe. The installed Despia V3 app must include the compiled extension.
 
 Pass the route's exact output variable as the second argument. The SDK resolves an object whose matching property contains the full native envelope: `ok`, `code`, `error` and `data`, with runtime metadata. A native `ok: false` answer does not reject the SDK promise. Check `ok` before reading `data`. A single watched value becomes `undefined` after 30 seconds without an answer. Await calls using the same output variable sequentially.
 
