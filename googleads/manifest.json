@@ -1,0 +1,145 @@
+{
+  "version": "1.0.0",
+  "bridge": {
+    "routes": [
+      {
+        "name": "configure",
+        "params": {}
+      },
+      {
+        "name": "status",
+        "params": {}
+      },
+      {
+        "name": "consent",
+        "params": {
+          "enabled": {
+            "type": "bool",
+            "required": true
+          },
+          "ad_storage": {
+            "type": "bool"
+          },
+          "ad_user_data": {
+            "type": "bool"
+          },
+          "ad_personalization": {
+            "type": "bool"
+          }
+        }
+      },
+      {
+        "name": "event",
+        "params": {
+          "name": {
+            "type": "string",
+            "max": 40,
+            "required": true
+          },
+          "properties": {
+            "type": "string",
+            "max": 4096
+          }
+        }
+      },
+      {
+        "name": "purchase",
+        "params": {
+          "amount": {
+            "type": "string",
+            "max": 32,
+            "required": true
+          },
+          "currency": {
+            "type": "string",
+            "max": 3,
+            "required": true
+          },
+          "transaction_id": {
+            "type": "string",
+            "max": 128,
+            "required": true
+          },
+          "properties": {
+            "type": "string",
+            "max": 4096
+          }
+        }
+      },
+      {
+        "name": "user",
+        "params": {
+          "id": {
+            "type": "string",
+            "max": 256
+          }
+        }
+      },
+      {
+        "name": "property",
+        "params": {
+          "name": {
+            "type": "string",
+            "max": 24,
+            "required": true
+          },
+          "value": {
+            "type": "string",
+            "max": 36
+          }
+        }
+      },
+      {
+        "name": "reset",
+        "params": {}
+      }
+    ]
+  },
+  "ios": {
+    "pods": [
+      {
+        "name": "Firebase/CoreOnly",
+        "version": "10.29.0"
+      },
+      {
+        "name": "FirebaseAnalytics",
+        "version": "10.29.0"
+      }
+    ],
+    "podfile_lock": "ios/Podfile.lock",
+    "pod_trees": {
+      "Firebase": "d1716854993461d002addb71b215bbac5c7baef8b690b871e41bbee759515623",
+      "FirebaseAnalytics": "c533e7fca5dcff1739494bbd02c61e20bfd710a2d962400e632773b704edd252",
+      "FirebaseCore": "32d7bf691a5ed7e9510b041a237e8bd04023e11b1be2f23e126ffeea201ed284",
+      "FirebaseCoreInternal": "544d81e91ea4dc2db9a94e307d46f4a77102e031693fe45b0252cbd39bf23568",
+      "FirebaseInstallations": "1cf303e5c682136857d210f14483d75b7a9ace47cc5720a7093ea49907ba12ea",
+      "GoogleAppMeasurement": "a12faf0981b73913aab15cd7dae7fa643d9f96146796ffbc95008f67430a5a1e",
+      "GoogleUtilities": "3b110975cb12b697b45848c9045cda794810d67cc1649a6b307636f8975bd740",
+      "PromisesObjC": "81f803e8a0a99b50f5962c18e82a2ed04ae576a785bac290162a9474df761aeb",
+      "nanopb": "15c3f06cb66a31a62d7cf356a20bf6227a59261378f9d737cdc751e360281154"
+    },
+    "app": {
+      "entry_type": "GoogleAdsExtension",
+      "sources": [
+        "ios/app/GoogleAdsExtension.swift"
+      ],
+      "lifecycle": [
+        "launch"
+      ]
+    }
+  },
+  "android": {
+    "entry_class": "despia.ext.googleads.GoogleAdsExtension",
+    "lifecycle": [
+      "application_create"
+    ],
+    "modules": [
+      {
+        "kind": "custom",
+        "name": "googleads",
+        "dir": "android/googleads",
+        "link": "implementation"
+      }
+    ]
+  }
+}
