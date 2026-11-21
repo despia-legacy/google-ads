@@ -38,41 +38,54 @@ ATT permission is separate. This adapter does not request the ATT prompt or clai
 
 ## JavaScript SDK
 
-Install the SDK in your web app:
+Install the published SDK in your web app:
 
 ```sh
 npm install despia-native
 ```
 
-Copy `example/src/lib/despia-extension.js` to your app's `src/lib/` and adjust the import path if needed. It imports `despia` from `despia-native`, calls the SDK and returns the native answer's `data`. It checks native error envelopes and throws an error with their `code`. The SDK itself resolves native `ok: false` envelopes; it does not reject them. A single watched value becomes `undefined` after 30 seconds, which this helper reports as `sdk_timeout`.
+Import `despia` directly from `despia-native`. The examples use SDK 1.0.28. Run native calls from browser event handlers or mounted client hooks; importing the SDK during server rendering is safe. The installed Despia V3 app must include the approved extension.
 
-Each helper call forwards a unique native callback into a separate watched value, so overlapping calls do not share response globals. `onExtensionEvent` registers the declared native event callbacks and returns a cleanup function. Events are callbacks, not values you can poll from the SDK proxy.
-
-Importing the SDK is safe during server rendering. Run calls and event subscriptions only from browser click handlers or mounted client hooks. React and Vue can use the browser APIs used by this helper; in Next.js and other server-rendered apps, keep these calls in client code. The extension must be included in the installed Despia V3 app; a browser preview has no native extension features.
+Pass the route's exact output variable as the second argument. The SDK resolves an object whose matching property contains the full native envelope: `ok`, `code`, `error` and `data`, with runtime metadata. A native `ok: false` answer does not reject the SDK promise. Check `ok` before reading `data`. A single watched value becomes `undefined` after 30 seconds without an answer. Await calls using the same output variable sequentially.
 
 ## Calls
 
-Use the SDK helper for calls. It encodes parameters, forwards the native callback and checks the result envelope.
+Apply the user's collection choice before sending events. Encode JSON query values with `encodeURIComponent(JSON.stringify(...))`.
 
 ```javascript
-import { extensionCall } from './lib/despia-extension.js';
-const google = (route, params) => extensionCall('googleads', route, params);
-await google('configure');
-await google('consent', { enabled: true, ad_storage: false, ad_user_data: false, ad_personalization: false });
-await google('event', { name: 'generate_lead', properties: { currency: 'USD', value: 12.5 } });
-await google('purchase', { amount: '12.50', currency: 'USD', transaction_id: 'order123' });
+import despia from 'despia-native';
+
+const configuredReply = await despia('extension://googleads/configure', ['googleadsConfigureResult']);
+const configured = configuredReply.googleadsConfigureResult;
+if (!configured?.ok) throw new Error(configured?.error ?? 'No native answer');
+
+const consentReply = await despia('extension://googleads/consent?enabled=true&ad_storage=false&ad_user_data=false&ad_personalization=false', ['googleadsConsentResult']);
+const consent = consentReply.googleadsConsentResult;
+if (!consent?.ok) throw new Error(consent?.error ?? 'No native answer');
+
+const properties = { currency: 'USD', value: 12.5 };
+const loggedReply = await despia(
+  `extension://googleads/event?name=generate_lead&properties=${encodeURIComponent(JSON.stringify(properties))}`,
+  ['googleadsEventResult']
+);
+const logged = loggedReply.googleadsEventResult;
+if (!logged?.ok) throw new Error(logged?.error ?? 'No native answer');
+
+const purchaseReply = await despia('extension://googleads/purchase?amount=12.50&currency=USD&transaction_id=order123', ['googleadsPurchaseResult']);
+const purchase = purchaseReply.googleadsPurchaseResult;
+if (!purchase?.ok) throw new Error(purchase?.error ?? 'No native answer');
 ```
 
-| Route | Parameters | Successful answer |
-| --- | --- | --- |
-| `status` | None | `configured`, adapter `enabled`, `sdk` |
-| `configure` | None | `configured: true`, adapter `enabled` |
-| `consent` | Required `enabled` Boolean, optional `ad_storage`, `ad_user_data`, `ad_personalization` Booleans | `enabled` |
-| `event` | Required `name`, optional JSON string `properties` | `accepted: true` |
-| `purchase` | Required `amount`, uppercase three-letter `currency`, `transaction_id`, optional JSON string `properties` | `accepted: true` |
-| `user` | Optional `id`; omit to clear | `accepted: true` |
-| `property` | Required `name`, optional `value`; omit the value to clear | `accepted: true` |
-| `reset` | None | `accepted: true` |
+| Route | Parameters | Successful answer | SDK output variable |
+| --- | --- | --- | --- |
+| `status` | None | `configured`, adapter `enabled`, `sdk` | `googleadsStatusResult` |
+| `configure` | None | `configured: true`, adapter `enabled` | `googleadsConfigureResult` |
+| `consent` | Required `enabled` Boolean, optional `ad_storage`, `ad_user_data`, `ad_personalization` Booleans | `enabled` | `googleadsConsentResult` |
+| `event` | Required `name`, optional JSON string `properties` | `accepted: true` | `googleadsEventResult` |
+| `purchase` | Required `amount`, uppercase three-letter `currency`, `transaction_id`, optional JSON string `properties` | `accepted: true` | `googleadsPurchaseResult` |
+| `user` | Optional `id`; omit to clear | `accepted: true` | `googleadsUserResult` |
+| `property` | Required `name`, optional `value`; omit the value to clear | `accepted: true` | `googleadsPropertyResult` |
+| `reset` | None | `accepted: true` | `googleadsResetResult` |
 
 These are the bridge result's payload fields. `accepted` means the request was handed to the SDK, not that Google recorded or attributed it. The SDK can reject event names and parameters under its own rules. Purchase uses Firebase's `purchase` event and overrides `value`, `currency` and `transaction_id` in `properties` with the explicit arguments.
 
