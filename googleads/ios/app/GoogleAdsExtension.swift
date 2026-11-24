@@ -13,7 +13,7 @@ final class GoogleAdsExtension: NativeExtension {
     func handle(_ call: NativeExtCall) async -> NativeExtResult {
         do {
             if call.route == "status" {
-                return .ok(["configured": configured, "enabled": enabled, "sdk": "10.29.0"])
+                return .ok(["configured": configured, "enabled": enabled, "sdk": "13.2.0"])
             }
             if call.route == "configure" {
                 if configured { return .ok(["configured": true, "enabled": enabled]) }
@@ -71,6 +71,21 @@ final class GoogleAdsExtension: NativeExtension {
                     parameters[AnalyticsParameterTransactionID] = call.params["transaction_id"] as? String ?? ""
                 } else { name = call.params["name"] as? String ?? "" }
                 Analytics.logEvent(name, parameters: parameters)
+            case "conversion_measurement":
+                // Google Ads on-device conversion measurement (FirebaseAnalytics links GoogleAdsOnDeviceConversion).
+                // Exactly one identifier: a plain email or E.164 phone, or its SHA-256 digest as 64 hex characters.
+                let given = ["email", "phone", "hashed_email", "hashed_phone"].filter { call.params[$0] != nil }
+                guard given.count == 1, let value = call.params[given[0]] as? String, !value.isEmpty else { throw GoogleAdsParameters.failure() }
+                switch given[0] {
+                case "email":
+                    guard value.contains("@") else { throw GoogleAdsParameters.failure() }
+                    Analytics.initiateOnDeviceConversionMeasurement(emailAddress: value)
+                case "phone":
+                    guard value.range(of: "^\\+[1-9][0-9]{6,14}$", options: .regularExpression) != nil else { throw GoogleAdsParameters.failure() }
+                    Analytics.initiateOnDeviceConversionMeasurement(phoneNumber: value)
+                case "hashed_email": Analytics.initiateOnDeviceConversionMeasurement(hashedEmailAddress: try GoogleAdsParameters.digest(value))
+                default: Analytics.initiateOnDeviceConversionMeasurement(hashedPhoneNumber: try GoogleAdsParameters.digest(value))
+                }
             case "user": Analytics.setUserID(call.params["id"] as? String)
             case "property": Analytics.setUserProperty(call.params["value"] as? String, forName: call.params["name"] as? String ?? "")
             default: return .error(code: "not_registered", message: call.route)
@@ -110,6 +125,18 @@ enum GoogleAdsParameters {
         }
         return parameters
     }
+    /// A SHA-256 digest given as 64 hexadecimal characters, as the 32 bytes Firebase expects.
+    static func digest(_ hex: String) throws -> Data {
+        guard hex.count == 64, hex.range(of: "^[0-9a-fA-F]{64}$", options: .regularExpression) != nil else { throw invalid() }
+        var bytes = Data(capacity: 32); var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { throw invalid() }
+            bytes.append(byte); index = next
+        }
+        return bytes
+    }
+    static func failure() -> NSError { invalid() }
     private static func invalid() -> NSError { NSError(domain: "googleads", code: 1) }
 }
 
@@ -122,7 +149,7 @@ enum GoogleAdsConfiguration {
         return true
     }
     static func isValidAppID(_ appID: String) -> Bool {
-        // FirebaseCore10.29 validates this before configuring, using an Objective-C exception on failure.
+        // FirebaseCore validates this before configuring, using an Objective-C exception on failure.
         let scanner = Scanner(string: appID)
         scanner.charactersToBeSkipped = nil
         guard let version = scanner.scanCharacters(from: .decimalDigits), scanner.scanString(":") != nil else { return false }

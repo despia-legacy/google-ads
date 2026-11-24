@@ -20,13 +20,18 @@ class GoogleAdsManifestTests(unittest.TestCase):
     def expand(self, platform):
         return nx_manifest.expand(nx_layout.load(str(ROOT)), platform, FILES, EXPECT, root=str(ROOT))
 
-    def test_ios_pins_complete_pod_closure(self):
+    def test_ios_pins_complete_swiftpm_graph(self):
         spec = self.expand("ios")
-        closure = spec["extensions"][0]["ios"]["pods_closure"]
-        self.assertEqual(22, len(closure))
-        self.assertEqual("10.29.0", closure["FirebaseAnalytics"]["version"])
-        self.assertNotIn("FirebaseMessaging", closure)
-        self.assertEqual(9, len({n.split("/")[0] for n in closure}))
+        ios = spec["extensions"][0]["ios"]
+        pins = ios["swiftpm_pins"]
+        resolved = json.loads((ROOT / "googleads/ios/Package.resolved").read_text())
+        self.assertEqual(len(resolved["pins"]), len(pins))
+        self.assertEqual("13.2.0", pins["firebase-ios-sdk"]["version"])
+        self.assertEqual("efad2b784dfae43404dc1fcfdf272981b235e71f", pins["firebase-ios-sdk"]["revision"])
+        self.assertEqual({}, ios["pods_closure"])
+        manifest = json.loads((ROOT / "googleads/manifest.json").read_text())
+        products = [p for pkg in manifest["ios"]["packages"] for p in pkg["products"]]
+        self.assertEqual(["FirebaseCore", "FirebaseAnalytics"], products)
 
     def test_android_uses_custom_module(self):
         spec = self.expand("android")
@@ -38,22 +43,23 @@ class GoogleAdsManifestTests(unittest.TestCase):
                        for p in (ROOT / "googleads" / platform).rglob(pattern)]
             nx_builtins.check_single_init(platform, sources, self.expand(platform))
 
-    def test_missing_tree_pin_is_refused(self):
+    def test_unpinned_remote_package_is_refused(self):
         manifest = json.loads((ROOT / "googleads/manifest.json").read_text())
-        trees = dict(manifest["ios"]["pod_trees"])
-        trees.pop("FirebaseCore")
+        remotes = [dict(p["remote"], name=p["name"]) for p in manifest["ios"]["packages"]]
+        resolved = json.loads((ROOT / "googleads/ios/Package.resolved").read_text())
+        resolved["pins"] = [p for p in resolved["pins"] if p["identity"] != "firebase-ios-sdk"]
         with self.assertRaises(NXError) as caught:
-            nx_deps.check_pods((ROOT / "googleads/ios/Podfile.lock").read_text(), manifest["ios"]["pods"], trees)
-        self.assertEqual("NX-D036", caught.exception.code)
+            nx_deps.check_swiftpm(resolved, remotes)
+        self.assertEqual("NX-D024", caught.exception.code)
 
-    def test_changed_approved_pod_pin_stays_refused(self):
-        spec = self.expand("ios")
-        closure = spec["extensions"][0]["ios"]["pods_closure"]
-        before = (ROOT / "googleads/ios/Podfile.lock").read_text()
-        after = before.replace("FirebaseCore (10.29.0)", "FirebaseCore (10.30.0)")
+    def test_changed_package_revision_stays_refused(self):
+        manifest = json.loads((ROOT / "googleads/manifest.json").read_text())
+        remotes = [dict(p["remote"], name=p["name"]) for p in manifest["ios"]["packages"]]
+        remotes[0]["revision"] = "0" * 40
+        resolved = json.loads((ROOT / "googleads/ios/Package.resolved").read_text())
         with self.assertRaises(NXError) as caught:
-            nx_deps.verify_pods("", after, closure)
-        self.assertEqual("NX-D033", caught.exception.code)
+            nx_deps.check_swiftpm(resolved, remotes)
+        self.assertEqual("NX-D024", caught.exception.code)
 
 if __name__ == "__main__":
     unittest.main()

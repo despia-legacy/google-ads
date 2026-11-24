@@ -20,6 +20,9 @@ public class GoogleAdsExtensionTest {
             assertEquals("not_configured", call(extension, route).code());
         }
     }
+    @Test public void onDeviceConversionIsAnIosLimit() {
+        assertEquals("platform_limit", call(new GoogleAdsExtension(), "conversion_measurement").code());
+    }
     @Test public void finiteAmounts() {
         assertEquals(12.5, GoogleAdsParameters.number("12.50"), 0.0);
         for (String text : new String[]{"NaN", "Infinity", "1e999", "invalid"}) {

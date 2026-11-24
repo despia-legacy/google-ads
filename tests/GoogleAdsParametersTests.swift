@@ -22,6 +22,11 @@ struct GoogleAdsParametersTests {
         for text in ["[]", "null", "{\"flag\":true}", "{\"nested\":{}}", "{\"items\":[{\"nested\":{}}]}", "{\"items\":[1]}", "{\"price\":null}"] {
             rejects { _ = try GoogleAdsParameters.parse(text) }
         }
+        let digest = try GoogleAdsParameters.digest(String(repeating: "ab", count: 32))
+        precondition(digest.count == 32 && digest.first == 0xab)
+        for text in ["", "ab", String(repeating: "zz", count: 32), String(repeating: "ab", count: 33)] {
+            rejects { _ = try GoogleAdsParameters.digest(text) }
+        }
         let valid: [String: Any] = ["GOOGLE_APP_ID": "1:123456:ios:123abc", "API_KEY": "synthetic-public-sdk-setting",
                                     "PROJECT_ID": "synthetic-project", "BUNDLE_ID": "com.despia.test"]
         precondition(GoogleAdsConfiguration.isValid(valid, bundleID: "com.despia.test"))

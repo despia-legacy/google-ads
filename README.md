@@ -24,7 +24,7 @@ The JavaScript API works with React, Next.js, TanStack, Vue, Svelte and HTML5. P
 
 Signed build verification binds source hashes, dependency pins, app identity and final artifacts. It is separate from human code review and does not require a per-app enrollment switch.
 
-This extension pins the existing iOS Firebase SDK version, 10.29.0, through CocoaPods. Its CocoaPods dependency versions and SDK contents are pinned for build verification. It uses Android Firebase BOM 34.11.0. It adds no Messaging dependency and never enables push or calls a Messaging API.
+The iOS manifest declares the Firebase Swift package `firebase-ios-sdk` at `13.2.0` (revision `efad2b784dfae43404dc1fcfdf272981b235e71f`; the latest release, 13 November 2026, read 24 November 2026 on the firebase-ios-sdk releases page) with the products `FirebaseCore` and `FirebaseAnalytics`, and `googleads/ios/Package.resolved` pins the package's complete dependency graph. Android uses Firebase BOM `35.2.0` (the latest release, 11 November 2026, read 24 November 2026 on Google Maven) and `firebase-analytics`. It adds no Messaging dependency and never enables push or calls a Messaging API.
 
 See [V3 Extensions](https://setup.despia.com/experiments/v3-extensions) and the [extension skill](https://github.com/despia-legacy/extension-skill).
 
@@ -87,17 +87,20 @@ if (!purchase?.ok) throw new Error(purchase?.error ?? 'No native answer');
 | `purchase` | Required `amount`, uppercase three-letter `currency`, `transaction_id`, optional JSON string `properties` | `accepted: true` | `googleadsPurchaseResult` |
 | `user` | Optional `id`; omit to clear | `accepted: true` | `googleadsUserResult` |
 | `property` | Required `name`, optional `value`; omit the value to clear | `accepted: true` | `googleadsPropertyResult` |
+| `conversion_measurement` | Exactly one of `email`, `phone` (E.164, such as `+14155550123`), `hashed_email` or `hashed_phone` (SHA-256 of the normalized value, 64 hex characters) | `accepted: true` (iOS) | `googleadsConversionMeasurementResult` |
 | `reset` | None | `accepted: true` | `googleadsResetResult` |
 
-These are the bridge result's payload fields. `accepted` means the request was handed to the SDK, not that Google recorded or attributed it. The SDK can reject event names and parameters under its own rules. Purchase uses Firebase's `purchase` event and overrides `value`, `currency` and `transaction_id` in `properties` with the explicit arguments.
+These are the bridge result's payload fields. `status.sdk` is `13.2.0` on iOS and `BOM35.2.0` on Android. `accepted` means the request was handed to the SDK, not that Google recorded or attributed it. The SDK can reject event names and parameters under its own rules. Purchase uses Firebase's `purchase` event and overrides `value`, `currency` and `transaction_id` in `properties` with the explicit arguments.
 
 `properties` accepts a JSON object of strings and finite numbers, plus Firebase's `items` array of objects containing strings and finite numbers. Booleans, nulls and other nested objects are rejected. Clearing a user ID, clearing a property and resetting Analytics data remain available after disabling adapter collection. Reset affects the shared Firebase Analytics instance and does not delete historical server records or change consent.
 
-Errors include `not_configured`, `configuration_conflict`, `consent_required` and `bad_request`. Android also reports `sdk_error` if Firebase cannot use the app configuration. A mismatched existing default app is preserved and reported as a configuration conflict.
+`conversion_measurement` starts Google Ads on-device conversion measurement with Firebase's `Analytics.initiateOnDeviceConversionMeasurement`, matching the person's sign-in email or phone on the device; the identifier does not leave the device in identifiable form. It needs `consent` with `enabled=true` first, and the app must be linked to Google Ads. Call it when the person signs in, and again after each app update, as Firebase recommends. Normalize before hashing as Firebase's tutorial describes. On Android it answers `platform_limit`: Google offers on-device conversion measurement for iOS App campaigns only ([Google Ads Help](https://support.google.com/google-ads/answer/12119136), read 24 November 2026).
+
+Errors include `not_configured`, `configuration_conflict`, `consent_required` and `bad_request`, and `platform_limit` for `conversion_measurement` on Android. Android also reports `sdk_error` if Firebase cannot use the app configuration. A mismatched existing default app is preserved and reported as a configuration conflict.
 
 ## Platform limits
 
-The iOS adapter uses the Firebase version already present in the V3 build. It supports Analytics events, purchases and consent controls. Current automatic Google Ads on-device event conversion measurement needs a coordinated Firebase SDK upgrade and is not included here.
+On iOS the V3 base app links the same `firebase-ios-sdk` 13.2.0 package for push, so the extension uses that version and adds only the `FirebaseCore` and `FirebaseAnalytics` products. It needs a V3 runtime that ships Firebase 13 as a Swift package. On-device conversion measurement is iOS only (see `conversion_measurement`).
 
 Android uses Firebase Analytics through the existing Firebase BOM. Both platforms use the default Firebase app and require configuration for the application's own bundle ID or package. Collection settings and reset operations affect the shared Analytics instance.
 
