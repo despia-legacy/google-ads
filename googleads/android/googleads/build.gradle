@@ -10,8 +10,8 @@ android {
 }
 dependencies {
     implementation project(':nativeext-api')
-    implementation platform('com.google.firebase:firebase-bom:34.11.0')
+    implementation platform('com.google.firebase:firebase-bom:35.2.0')
     implementation 'com.google.firebase:firebase-analytics'
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.json:json:20250517'
+    testImplementation 'org.json:json:20260814'
 }
